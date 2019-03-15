@@ -1,0 +1,197 @@
+---
+title: "Exploring Effects of Transmission Type on Automobile Miles per Gallon Rates"
+author: "Alex Hudson"
+date: "2019-03-15"
+output: 
+    pdf_document:
+        toc: FALSE
+header-includes: 
+    - \usepackage{caption}
+    - \captionsetup[table]{labelformat=empty}
+    - \captionsetup[figure]{labelformat=empty}
+---
+
+```{r setup, echo = FALSE, results = "hide", error = FALSE, message = FALSE, warning = FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(kableExtra)
+data(mtcars)
+mtcars <- mtcars %>% 
+    mutate(name = rownames(mtcars), 
+           wtc = wt - mean(wt), 
+           hpc = hp - mean(hp), 
+           amf = factor(ifelse(am == 0, "Automatic", "Manual")))
+```
+
+## Executive Summary
+
+Our goal in this analysis is to determine whether any significant difference in vehicle miles per gallon exists based primarily on whether it uses an automatic transmission or a manual transmission, and if so, to quantify that difference. In the analysis, we consider several possible variables, but we ultimately settle on transmission type, vehicle weight, and vehicle horsepower as our primary measures. We determine that there is a relationship between a vehicle's miles per gallon and its transmission type. However, it is dependent upon the weight of the vehicle. For the mean vehicle weight in the data, approximately 3200 pounds, our model estimates that if weight and horsepower are held constant, then a vehicle with a manual transmission will have about 1.14 fewer miles per gallon than a vehicle with an automatic transmission. However, for every 1000 pounds of weight added, a vehicle with a manual transmission will have about another 4.09 miles per gallon fewer than a vehicle with an automatic transmission, provided that both vehicles have identical weight and horsepower.
+
+
+
+## Exploratory Analysis
+
+Exploratory analyses were conducted primarily considering relationships between miles per gallon and other predictors available while highlighting transmission type throughout. Transmission type remained the primary predictor due to the particular interest in any effect it may have. Of particular interest were apparent relationships between miles per gallon and each of the individual predictors weight and horsepower. Overall, miles per gallon generally decreased as weight increased, but separating the data by transmission type revealed a potential interaction effect; the slope of the decrease in miles per gallon appears to be different between vehicles with manual transmissions and vehicles with automatic transmissions. Meanwhile, miles per gallon generally decreased with horsepower as well. While transmission type makes it appear as if there is a difference in a linear relationship, closer examination of the plot shows that there may instead be a nonlinear relationship between miles per gallon and horsepower.
+
+
+
+## Model Selection
+
+Our model selection process involved creating a set of nested models and employing ANOVA to compare the nested models in succession. Every model was tested with miles per gallon as the response, the first model included only an intercept, and the order in which variables were added to successive models is as follows: transmission type, centered vehicle weight and weight/transmission interaction, number of cylinders, linear centered horsepower, and quadratic centered horsepower. Beyond this point, adding more predictors did not yield significant results. Further, upon analysis of the last model, it appeared as if adding horsepower as a predictor removed the significance of number of cylinders, and so number of cylinders was removed from the final model.
+
+
+
+## Final Model
+
+Our final linear model is as follows. Note that the variables for weight and horsepower have been centered prior to creation of the model. We ultimately included transmission type, weight, the interaction between transmission type and weight, and both linear and quadratic forms of horsepower in the final model.
+
+\[
+\begin{aligned}
+    \text{(Miles per Gallon)} &= 19.21 \\
+        &+ (-1.14) \times \text{(Transmission Type: Manual)} \\ 
+        &+ (-2.00) \times \text{(Weight)} \\ 
+        &+ (-11.98) \times \text{(Horsepower; Linear)} \\ 
+        &+ (7.25) \times \text{(Horsepower; Quadratic)} \\ 
+        &+ (-4.09) \times \text{(Transmission Type: Manual)} \times \text{(Weight)} \\ 
+        &+ (\text{Error}: \epsilon \sim N(0, \sigma^2))
+\end{aligned}
+\]
+
+Meanwhile, our 95% confidence intervals for the intercept and each of the coefficients are as follows. While the confidence interval for the main effect of transmission type contains zero, the presence of the interaction term, whose confidence interval does not include zero, warrants the inclusion of the main effect.
+
+```{r, echo = FALSE, results = "asis", fig.pos = "H"}
+lmfinal <- lm(mpg ~ amf * wtc + poly(hpc, 2), data = mtcars)
+dci <- data.frame(Coefficient = c("(Intercept)", 
+                                  "(Transmission Type: Manual)", 
+                                  "(Weight)", 
+                                  "(Horsepower; Linear)", 
+                                  "(Horsepower; Quadratic)", 
+                                  "(Transmission Type: Manual) (Weight)"))
+dci <- cbind(dci, confint(lmfinal))
+rownames(dci) <- NULL
+knitr::kable(dci) %>% 
+    kable_styling(position = "center", 
+                  latex_options = "HOLD_position")
+```
+
+
+
+## Model Diagnostics
+
+Diagnostics performed for the final model include residuals versus fitted values, a normal quantile-quantile plot for the residuals, a plot of the square root of the absolute value of the standardized residuals versus fitted values, and a plot of residuals versus leverage. The plots suggested the possibility of two very slight outliers, but these were investigated and nothing anomalous was found in the data. Both were somewhat lighter vehicles with unusually high miles per gallon, but they were not so unusually high as to warrant concern about the model as a whole.
+
+
+
+## Required Assumptions
+
+As with all multiple linear regression models, some assumptions were required. The model residuals are assumed to have mean zero, have constant variance, and be independent and identically distributed. The use of the model assumes the existence of linear relationships between the response variable and each of the predictors used. At no point during the exploratory analysis, model selection, or model diagnostics did these assumptions appear to be violated in any significant way.
+
+
+
+## Conclusions
+
+Using multiple linear regression, we conclude that the data support the existence of a relationship between transmission type and miles per gallon for automobiles. That relationship is dependent upon the weight of the vehicle and, in general, as the weight of the vehicle increases, the miles per gallon for vehicles with automatic transmissions decreases more slowly than the miles per gallon for vehicles with manual transmissions, provided that all other predictors are held fixed. For lighter vehicles, this may mean that manual transmissions are associated with greater miles per gallon, while for heavier vehicles, this may mean that automatic transmissions are associated with greater miles per gallon.
+
+
+
+\pagebreak
+
+## Appendix
+
+### Data
+
+The data are stored in the `mtcars` data set in R. From the documentation for the data, "The data was extracted from the 1974 Motor Trend US magazine, and comprises fuel consumption and 10 aspects of automobile design and performance for 32 automobiles (1973–74 models)." In the data, `mpg` records the approximate miles traveled per US gallon of fuel, `cyl` records the number of cylinders in the engine, `disp` records the displacement of the engine in cubic inches, `hp` records the gross horsepower of the engine, `drat` records the rear axle ratio, `wt` records the vehicle weight in units of 1000 pounds, `qsec` records the time in which the vehicle can travel one quarter of a mile, `vs` records whether the cylinders of the engine are arranged in a V shape (0) or a straight line (1), `am` records whether the transmission is automatic (0) or manual (1), `gear` records the number of forward gears in the transmission, and `carb` records the number of carburetors.
+
+### Supporting Tables
+
+#### Model Selection ANOVA Table
+
+```{r, echo = FALSE, tidy = TRUE, fig.pos = "H"}
+lm00 <- lm(mpg ~ 1, data = mtcars)
+lm01 <- lm(mpg ~ amf, data = mtcars)
+lm02 <- lm(mpg ~ amf * wtc, data = mtcars)
+lm03 <- lm(mpg ~ amf * wtc + cyl, data = mtcars)
+lm04 <- lm(mpg ~ amf * wtc + cyl + hpc, data = mtcars)
+lm05 <- lm(mpg ~ amf * wtc + cyl + poly(hpc, 2), data = mtcars)
+anova(lm00, lm01, lm02, lm03, lm04, lm05)
+```
+
+#### Model Coefficient Summary Information
+
+```{r, results = "asis", echo = FALSE, fig.pos = "H"}
+lmfinal <- lm(mpg ~ amf * wtc + poly(hpc, 2), data = mtcars)
+lmcdisp <- summary(lmfinal)$coef
+rownames(lmcdisp) <- c("(Intercept)", 
+                       "(Transmission Type: Manual)", 
+                       "(Weight)", 
+                       "(Horsepower; Linear)", 
+                       "(Horsepower; Quadratic)", 
+                       "(Transmission Type: Manual) (Weight)")
+knitr::kable(lmcdisp) %>% 
+    kable_styling(position = "center")
+```
+
+### Supporting Figures
+
+```{r, echo = FALSE, fig.align = "center", fig.width = 6.8, fig.height = 3, fig.pos = "H", fig.cap = "Exploratory Plots"}
+dat <- data.frame(mpg = mtcars$mpg, wt = mtcars$wt, amf = mtcars$amf, 
+                  hp = mtcars$hp)
+dat <- dat %>% 
+    gather(key = "predictor", value = "value", -c(amf, mpg)) %>% 
+    mutate(predictor = relevel(factor(predictor), "wt"))
+ggplot(data = dat, mapping = aes(x = value, y = mpg, color = amf)) + 
+    geom_smooth(mapping = aes(color = NULL), method = "lm", color = "black") + 
+    geom_point() + geom_smooth(method = "lm", se = FALSE) + 
+    facet_grid(cols = vars(predictor), scales = "free", 
+               labeller = as_labeller(c(hp = "Horsepower", 
+                                        wt = "Weight (1000 lbs)"))) + 
+    labs(x = element_blank(), y = "Miles per Gallon (US)", 
+         color = "Trans. Type", 
+         title = "Apparent Interaction in Miles Per Gallon Between Weight and Transmission Type\nNonlinear Relationship Between Miles Per Gallon and Horsepower") + 
+    scale_color_manual(values = c("forestgreen", "slateblue")) + 
+    theme(title = element_text(size = 10))
+```
+
+```{r, echo = FALSE, fig.align = "center", fig.width = 6, fig.height = 4, fig.pos = "H", fig.cap = "Model Diagnostic Plots"}
+lmfinal <- lm(mpg ~ amf * wtc + poly(hpc, 2), data = mtcars)
+par(mfrow = c(2,2), mar = c(4, 4, 2, 1))
+plot(lmfinal)
+par(mfrow = c(1,1), mar = c(5.1, 4.1, 4.1, 2.1))
+```
+
+```{r, echo = FALSE, warning = FALSE, fig.align = "center", fig.width = 6.5, fig.height = 4, fig.pos = "H", fig.cap = "Outlier Identification from Diagnostic Plots"}
+mtcars2 <- mtcars %>% 
+    mutate(F128 = (name == "Fiat 128"), TCorolla = (name == "Toyota Corolla"))
+# mtcars2 %>% filter(F128 == TRUE | TCorolla == TRUE)
+ggplot(data = mtcars2) + 
+    geom_point(mapping = aes(x = hp, y = mpg, color = amf, 
+                             size = factor(F128 | TCorolla))) + 
+    labs(x = "Horsepower", y = "Miles per Gallon", 
+         color = "Trans. Type", size = "Outlier", 
+         title = "Potential Outliers with Lower Horsepower and Higher Miles per Gallon")
+```
+
+### Setup Code
+
+```{r, eval = FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(knitr)
+library(kableExtra)
+library(stringr)
+data(mtcars)
+mtcars <- mtcars %>% 
+    mutate(name = rownames(mtcars), 
+           wtc = wt - mean(wt), 
+           hpc = hp - mean(hp), 
+           amf = factor(ifelse(am == 0, "Automatic", "Manual")))
+```
+
+```{r, echo = FALSE, eval = FALSE}
+### Session Information
+devtools::session_info()
+```
+
